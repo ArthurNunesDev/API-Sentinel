@@ -52,5 +52,29 @@ function main(): void {
   $credentials = api_sentinel_validate_target_url('https://user:pass@example.com');
   invariant($credentials['valid'] === false, 'Embedded credentials should be rejected');
 
+  $public_dns_ips = api_sentinel_validate_resolved_ips(vec['8.8.8.8', '2001:4860:4860::8888']);
+  invariant(
+    $public_dns_ips['valid'] === true,
+    'Public IPv4 and IPv6 DNS answers should be accepted',
+  );
+
+  $mixed_dns_ips = api_sentinel_validate_resolved_ips(vec['8.8.8.8', '127.0.0.1']);
+  invariant(
+    $mixed_dns_ips['valid'] === false,
+    'A public answer mixed with loopback must reject the whole DNS result',
+  );
+
+  $private_dns_ips = api_sentinel_validate_resolved_ips(vec['10.0.0.5']);
+  invariant(
+    $private_dns_ips['valid'] === false,
+    'Private DNS answers should be rejected',
+  );
+
+  $empty_dns_ips = api_sentinel_validate_resolved_ips(vec[]);
+  invariant(
+    $empty_dns_ips['valid'] === false,
+    'An empty DNS result should be rejected',
+  );
+
   echo "URL validation tests passed.\n";
 }
