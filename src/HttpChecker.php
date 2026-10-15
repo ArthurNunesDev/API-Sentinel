@@ -60,7 +60,12 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
     }
   }
 
-  if (!\function_exists('curl_init') || !\defined('CURLOPT_RESOLVE')) {
+  if (
+    !\function_exists('curl_init') ||
+    !\defined('CURLOPT_RESOLVE') ||
+    !\defined('CURLOPT_PROXY') ||
+    !\defined('CURLOPT_PROTOCOLS')
+  ) {
     return dict['ok' => false, 'error' => 'Safe HTTP client is unavailable'];
   }
 
