@@ -50,9 +50,19 @@ function api_sentinel_validate_target_url(string $url): dict<string, mixed> {
     ];
   }
 
-  if (\filter_var($host, FILTER_VALIDATE_IP) !== false) {
+  // parse_url() keeps IPv6 brackets in the host; remove them before IP checks.
+  $ip_host = $host;
+  if (
+    \strlen($ip_host) >= 2 &&
+    \substr($ip_host, 0, 1) === '[' &&
+    \substr($ip_host, \strlen($ip_host) - 1) === ']'
+  ) {
+    $ip_host = \substr($ip_host, 1, \strlen($ip_host) - 2);
+  }
+
+  if (\filter_var($ip_host, FILTER_VALIDATE_IP) !== false) {
     $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
-    if (\filter_var($host, FILTER_VALIDATE_IP, $flags) === false) {
+    if (\filter_var($ip_host, FILTER_VALIDATE_IP, $flags) === false) {
       return dict[
         'valid' => false,
         'error' => 'Private or reserved IP addresses are not allowed',
