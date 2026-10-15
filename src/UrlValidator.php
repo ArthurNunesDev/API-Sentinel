@@ -35,10 +35,14 @@ function api_sentinel_validate_target_url(string $url): dict<string, mixed> {
   }
 
   $normalized_host = \strtolower($host);
+  $host_length = \strlen($normalized_host);
+  $is_localhost_subdomain = $host_length >= 10 &&
+    \substr($normalized_host, $host_length - 10) === '.localhost';
+
   if (
     $normalized_host === 'localhost' ||
     $normalized_host === 'localhost.localdomain' ||
-    \str_ends_with($normalized_host, '.localhost')
+    $is_localhost_subdomain
   ) {
     return dict[
       'valid' => false,
