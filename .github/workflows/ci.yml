@@ -24,3 +24,17 @@ jobs:
 
       - name: Build web runtime image
         run: docker build -t api-sentinel .
+
+      - name: Smoke-test GET /health
+        run: |
+          docker run -d --name api-sentinel-test -p 8080:80 api-sentinel
+          trap 'docker logs api-sentinel-test; docker rm -f api-sentinel-test >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health endpoint did not become ready in time."
+          exit 1
