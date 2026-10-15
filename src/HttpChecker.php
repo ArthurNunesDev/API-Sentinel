@@ -1,6 +1,5 @@
 <?hh // strict
 
-require_once __DIR__ . '/UrlValidator.php';
 
 /**
  * Performs one bounded HTTP check against a previously validated public IP.
