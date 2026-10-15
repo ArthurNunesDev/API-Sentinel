@@ -2,64 +2,87 @@
 
 Plataforma open source de monitoramento de APIs, desenvolvida com **Hack (HHVM)**.
 
-O objetivo é acompanhar a disponibilidade de endpoints HTTP/HTTPS, medir latência, manter histórico de verificações e registrar incidentes.
+O projeto está começando pela infraestrutura HTTP e pelo endpoint de saúde. A visão de longo prazo é monitorar endpoints autorizados, medir latência, guardar histórico de verificações e acompanhar incidentes.
 
-> **Status:** início do desenvolvimento. O monitoramento agendado, a persistência, os alertas e a API HTTP ainda não estão implementados.
+> **Status:** scaffold inicial. O endpoint `GET /health`, um teste de payload e um build Docker foram adicionados. A execução real e a CI ainda precisam ser confirmadas pelo primeiro workflow; monitoramento agendado, persistência, alertas e painel ainda não foram implementados.
 
-## Objetivos
-
-- Cadastrar endpoints que você tem autorização para monitorar.
-- Verificar disponibilidade e medir latência e códigos HTTP.
-- Armazenar histórico e calcular disponibilidade por período.
-- Registrar incidentes e recuperações.
-- Expor uma API HTTP/JSON documentada.
-- Automatizar testes e validações com CI.
-
-## Tecnologias planejadas
+## Tecnologias
 
 - **Linguagem:** Hack
-- **Runtime:** HHVM
-- **Banco de dados:** PostgreSQL
-- **Formato da API:** HTTP/JSON
-- **Qualidade:** testes automatizados e GitHub Actions
+- **Runtime/web server:** HHVM + Proxygen
+- **Container:** Docker
+- **CI:** GitHub Actions
+- **Próxima etapa de persistência:** PostgreSQL
 
-## Estrutura inicial
+## Endpoint disponível no código
 
-```text
-API-Sentinel/
-├── src/
-│   └── Health.php
-├── .hhconfig
-├── .gitignore
-└── README.md
+### `GET /health`
+
+Retorna JSON com o estado básico do serviço:
+
+```json
+{
+  "status": "ok",
+  "service": "API Sentinel"
+}
 ```
 
-## Desenvolvimento
+O endpoint confirma apenas que a aplicação respondeu; ainda não verifica banco de dados nem serviços externos.
 
-Antes de executar o projeto, configure uma versão do HHVM compatível com Hack em um ambiente Linux suportado. Os comandos de execução e a configuração de testes serão documentados depois que o ambiente for validado.
+- `GET /` retorna informações básicas do serviço.
+- Métodos diferentes de `GET` retornam `405 Method Not Allowed`.
+- Rotas desconhecidas retornam `404 Not Found`.
 
-### Roadmap
+## Executar com Docker
+
+É necessário ter Docker instalado e funcionando.
+
+```bash
+docker build -t api-sentinel .
+docker run --rm -p 8080:80 api-sentinel
+```
+
+Em outro terminal, consulte o endpoint:
+
+```bash
+curl -i http://localhost:8080/health
+```
+
+A imagem usa `hhvm/hhvm-proxygen` e publica o diretório `public/` pelo servidor HHVM. A execução deve ser validada no seu ambiente e no workflow do GitHub Actions antes de considerar o setup estável.
+
+## Testes
+
+O teste inicial valida o payload de saúde diretamente no HHVM:
+
+```bash
+docker run --rm -v "$PWD:/workspace" -w /workspace hhvm/hhvm:latest hhvm tests/HealthTest.php
+```
+
+O workflow em `.github/workflows/ci.yml` executa esse teste e constrói a imagem a cada push ou pull request para `main`.
+
+## Roadmap
 
 - [x] Criar repositório e estrutura inicial
-- [x] Adicionar um payload básico de saúde do serviço
-- [ ] Validar ambiente de desenvolvimento HHVM/Hack
-- [ ] Expor `GET /health` por meio de um servidor HTTP
+- [x] Implementar payload de saúde em Hack
+- [x] Criar handler HTTP para `GET /health`
+- [x] Adicionar teste inicial do payload
+- [x] Adicionar Dockerfile e workflow de CI
+- [ ] Confirmar execução do endpoint e resultado do workflow
 - [ ] Cadastrar e validar endpoints monitorados
 - [ ] Executar verificações HTTP e medir latência
 - [ ] Persistir histórico no PostgreSQL
 - [ ] Calcular uptime e acompanhar incidentes
-- [ ] Adicionar testes automatizados e CI
-- [ ] Documentar configuração e deploy
+- [ ] Implementar alertas e documentação de deploy
 
 ## Segurança
 
 - Monitore somente endpoints que você possui ou tem autorização para testar.
-- O cadastro de URLs deverá incluir proteções contra SSRF, bloqueando destinos locais, privados, link-local e endereços de metadados de provedores de nuvem.
+- Antes de implementar chamadas a URLs cadastradas, adicionar proteções contra SSRF: bloquear destinos locais, privados, link-local e endereços de metadados de provedores de nuvem, incluindo redirecionamentos para esses destinos.
 - Nunca envie tokens, senhas ou segredos para o Git.
 
 ## Contribuição
 
-Issues e pull requests são bem-vindos. Mudanças de comportamento devem incluir testes quando a infraestrutura de testes estiver configurada.
+Issues e pull requests são bem-vindos. Inclua testes para mudanças de comportamento.
 
 ## Licença
 
