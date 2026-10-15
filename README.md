@@ -4,7 +4,7 @@ Plataforma open source de monitoramento de APIs, desenvolvida com **Hack (HHVM)*
 
 O objetivo é monitorar endpoints autorizados, medir latência e status HTTP, guardar histórico de verificações e acompanhar incidentes. O desenvolvimento está sendo feito em etapas pequenas, com testes automatizados.
 
-> **Status:** fase inicial. O endpoint `GET /health` está validado pela CI. Foi adicionada uma primeira camada de validação sintática de URLs; o monitoramento real, a persistência, os alertas e o painel ainda não foram implementados.
+> **Status:** fase inicial. O endpoint `GET /health` está validado pela CI. Foi adicionada validação sintática de URLs e uma função para validar conjuntos de IPs obtidos por DNS; o monitoramento real, a persistência, os alertas e o painel ainda não foram implementados.
 
 ## Tecnologias
 
@@ -35,9 +35,9 @@ O endpoint confirma apenas que a aplicação respondeu; não verifica banco de d
 
 ## Validação inicial de URLs
 
-A função `api_sentinel_validate_target_url()` em `src/UrlValidator.php` verifica o formato da URL, aceita apenas HTTP/HTTPS, rejeita credenciais embutidas, localhost e endereços IP privados/reservados detectáveis diretamente.
+A função `api_sentinel_validate_target_url()` em `src/UrlValidator.php` verifica o formato da URL, aceita apenas HTTP/HTTPS, rejeita credenciais embutidas, localhost e endereços IP privados/reservados detectáveis diretamente. A função `api_sentinel_validate_resolved_ips()` valida uma lista de respostas IPv4/IPv6 já resolvidas e rejeita a lista inteira se estiver vazia ou contiver algum endereço inválido, privado ou reservado.
 
-**Limitação importante:** esta primeira camada ainda não resolve nomes DNS para validar os IPs resultantes e não acompanha redirecionamentos. Portanto, não deve ser considerada proteção SSRF completa e ainda não é usada para fazer requisições externas. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
+**Limitação importante:** a aplicação ainda não realiza a resolução DNS nem conecta usando os endereços validados; a função de IPs é apenas uma etapa de validação testada. Também não acompanha redirecionamentos nem protege contra mudanças de DNS entre validação e conexão. Portanto, não é proteção SSRF completa e ainda não é usada para fazer requisições externas. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
 
 ## Executar com Docker
 
