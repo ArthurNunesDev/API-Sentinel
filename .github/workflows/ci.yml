@@ -22,6 +22,14 @@ jobs:
             hhvm/hhvm:latest \
             hhvm tests/HealthTest.php
 
+      - name: Run URL validation tests with HHVM
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            hhvm/hhvm:latest \
+            hhvm tests/UrlValidatorTest.php
+
       - name: Build web runtime image
         run: docker build -t api-sentinel .
 
