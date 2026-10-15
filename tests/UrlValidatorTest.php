@@ -3,6 +3,7 @@
 <<__EntryPoint>>
 function main(): void {
   require_once __DIR__ . '/../src/UrlValidator.php';
+  require_once __DIR__ . '/../src/HttpChecker.php';
 
   $valid_https = api_sentinel_validate_target_url('https://example.com/status');
   invariant($valid_https['valid'] === true, 'Public HTTPS URL should be accepted');
