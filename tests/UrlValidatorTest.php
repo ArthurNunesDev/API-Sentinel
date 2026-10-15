@@ -19,10 +19,25 @@ function main(): void {
   $localhost = api_sentinel_validate_target_url('http://localhost:8080');
   invariant($localhost['valid'] === false, 'Localhost should be rejected');
 
+  $localhost_with_dot = api_sentinel_validate_target_url('http://localhost.');
+  invariant(
+    $localhost_with_dot['valid'] === false,
+    'Trailing-dot localhost should be rejected',
+  );
+
   $localhost_subdomain = api_sentinel_validate_target_url('http://api.localhost');
   invariant(
     $localhost_subdomain['valid'] === false,
     'Localhost subdomains should be rejected',
+  );
+
+  $loopback_ipv4 = api_sentinel_validate_target_url('http://127.0.0.1');
+  invariant($loopback_ipv4['valid'] === false, 'IPv4 loopback should be rejected');
+
+  $private_ipv6 = api_sentinel_validate_target_url('http://[fc00::1]');
+  invariant(
+    $private_ipv6['valid'] === false,
+    'IPv6 unique-local addresses should be rejected',
   );
 
   $private_ip = api_sentinel_validate_target_url('http://192.168.1.10');
