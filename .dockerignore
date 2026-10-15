@@ -1,0 +1,8 @@
+.git
+.github
+.hh_server
+.hack
+vendor
+.env
+.env.*
+coverage
