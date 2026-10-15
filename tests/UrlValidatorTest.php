@@ -13,11 +13,26 @@ function main(): void {
   $invalid_scheme = api_sentinel_validate_target_url('ftp://example.com');
   invariant($invalid_scheme['valid'] === false, 'Non-HTTP schemes should be rejected');
 
+  $relative_url = api_sentinel_validate_target_url('/health');
+  invariant($relative_url['valid'] === false, 'Relative URLs should be rejected');
+
   $localhost = api_sentinel_validate_target_url('http://localhost:8080');
   invariant($localhost['valid'] === false, 'Localhost should be rejected');
 
+  $localhost_subdomain = api_sentinel_validate_target_url('http://api.localhost');
+  invariant(
+    $localhost_subdomain['valid'] === false,
+    'Localhost subdomains should be rejected',
+  );
+
   $private_ip = api_sentinel_validate_target_url('http://192.168.1.10');
   invariant($private_ip['valid'] === false, 'Private IP addresses should be rejected');
+
+  $loopback_ipv6 = api_sentinel_validate_target_url('http://[::1]:8080');
+  invariant(
+    $loopback_ipv6['valid'] === false,
+    'IPv6 loopback addresses should be rejected',
+  );
 
   $credentials = api_sentinel_validate_target_url('https://user:pass@example.com');
   invariant($credentials['valid'] === false, 'Embedded credentials should be rejected');
