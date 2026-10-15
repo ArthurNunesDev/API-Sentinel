@@ -77,5 +77,17 @@ function main(): void {
     'An empty DNS result should be rejected',
   );
 
+  $checker_ftp = api_sentinel_check_url('ftp://example.com');
+  invariant(
+    $checker_ftp['ok'] === false,
+    'HTTP checker must reject non-HTTP schemes before network access',
+  );
+
+  $checker_localhost = api_sentinel_check_url('http://localhost:8080');
+  invariant(
+    $checker_localhost['ok'] === false,
+    'HTTP checker must reject localhost before network access',
+  );
+
   echo "URL validation tests passed.\n";
 }
