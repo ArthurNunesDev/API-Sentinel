@@ -37,7 +37,7 @@ O endpoint confirma apenas que a aplicação respondeu; não verifica banco de d
 
 A função `api_sentinel_validate_target_url()` em `src/UrlValidator.php` verifica o formato da URL, aceita apenas HTTP/HTTPS, rejeita credenciais embutidas, localhost e endereços IP privados/reservados detectáveis diretamente. A função `api_sentinel_resolve_and_validate_host()` consulta registros DNS A e AAAA e valida todos os endereços encontrados. `api_sentinel_validate_resolved_ips()` rejeita a lista inteira se estiver vazia ou contiver algum endereço inválido, privado ou reservado.
 
-**Limitação importante:** a resolução e a validação DNS foram implementadas como etapa isolada, mas a aplicação ainda não conecta usando os endereços validados. Também não acompanha redirecionamentos nem protege contra mudanças de DNS entre validação e conexão. Portanto, não é proteção SSRF completa e ainda não é usada para fazer requisições externas. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
+**Limitação importante:** `api_sentinel_check_url()` em `src/HttpChecker.php` faz uma verificação HTTP pontual, limita o tempo da conexão e da requisição, fixa hosts DNS ao IP validado com `CURLOPT_RESOLVE` e não segue redirecionamentos. Redirecionamentos são reportados, não seguidos. Ainda é necessário validar o comportamento do cliente HTTP no runtime alvo e ampliar os testes de segurança antes de expor isso publicamente; a função não é chamada pela API pública, não há cadastro nem agendamento de monitoramento, histórico ou proteção SSRF completa garantida. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
 
 ## Executar com Docker
 
@@ -70,9 +70,11 @@ docker run --rm -v "$PWD:/workspace" -w /workspace hhvm/hhvm:latest hhvm tests/U
 - [x] Adicionar Dockerfile e CI
 - [x] Criar validação sintática inicial de URLs e testes
 - [x] Resolver DNS A/AAAA e validar todos os IPs retornados (etapa isolada)
-- [ ] Completar proteções SSRF com conexão fixada ao IP validado e validação de redirecionamentos
+- [x] Adicionar verificação HTTP pontual com conexão fixada ao IP validado e redirecionamentos desativados (etapa isolada)
+- [ ] Testar e endurecer as proteções SSRF no runtime de produção
 - [ ] Criar cadastro de endpoints monitorados
-- [ ] Executar verificações HTTP e medir latência
+- [x] Implementar função isolada de verificação HTTP e medição de latência
+- [ ] Integrar verificações HTTP ao cadastro e agendamento de endpoints
 - [ ] Persistir endpoints e histórico no PostgreSQL
 - [ ] Calcular uptime e acompanhar incidentes
 - [ ] Implementar alertas e documentação de deploy
