@@ -34,7 +34,7 @@ function api_sentinel_validate_target_url(string $url): dict<string, mixed> {
     ];
   }
 
-  $normalized_host = \strtolower($host);
+  $normalized_host = \strtolower(\rtrim($host, '.'));
   $host_length = \strlen($normalized_host);
   $is_localhost_subdomain = $host_length >= 10 &&
     \substr($normalized_host, $host_length - 10) === '.localhost';
