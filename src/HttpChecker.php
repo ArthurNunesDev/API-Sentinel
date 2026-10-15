@@ -30,17 +30,35 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
   }
 
   $normalized_host = \strtolower(\rtrim($host, '.'));
-  $resolved = api_sentinel_resolve_and_validate_host($normalized_host);
-  if (($resolved['valid'] ?? false) !== true) {
-    return dict[
-      'ok' => false,
-      'error' => $resolved['error'] ?? 'DNS validation failed',
-    ];
+  $ip_host = $normalized_host;
+  if (
+    \strlen($ip_host) >= 2 &&
+    \substr($ip_host, 0, 1) === '[' &&
+    \substr($ip_host, \strlen($ip_host) - 1) === ']'
+  ) {
+    $ip_host = \substr($ip_host, 1, \strlen($ip_host) - 2);
   }
 
-  $addresses = $resolved['addresses'] ?? vec[];
-  if (!\is_vec($addresses) || \count($addresses) === 0) {
-    return dict['ok' => false, 'error' => 'DNS returned no validated addresses'];
+  $is_ip_literal = \filter_var($ip_host, FILTER_VALIDATE_IP) !== false;
+  if ($is_ip_literal) {
+    $validated = api_sentinel_validate_resolved_ips(vec[$ip_host]);
+    if (($validated['valid'] ?? false) !== true) {
+      return dict['ok' => false, 'error' => 'Private or reserved IP addresses are not allowed'];
+    }
+    $addresses = vec[$ip_host];
+  } else {
+    $resolved = api_sentinel_resolve_and_validate_host($normalized_host);
+    if (($resolved['valid'] ?? false) !== true) {
+      return dict[
+        'ok' => false,
+        'error' => $resolved['error'] ?? 'DNS validation failed',
+      ];
+    }
+
+    $addresses = $resolved['addresses'] ?? vec[];
+    if (!\is_vec($addresses) || \count($addresses) === 0) {
+      return dict['ok' => false, 'error' => 'DNS returned no validated addresses'];
+    }
   }
 
   if (!\function_exists('curl_init') || !\defined('CURLOPT_RESOLVE')) {
@@ -50,7 +68,7 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
   $scheme = $parts['scheme'] ?? 'https';
   $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
   $address = $addresses[0];
-  // cURL expects IPv6 addresses in brackets in CURLOPT_RESOLVE entries.
+  // DNS names are pinned with CURLOPT_RESOLVE; IP literals are already direct.
   $resolve_address = \strpos($address, ':') !== false
     ? '['.$address.']'
     : $address;
@@ -66,7 +84,9 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
   \curl_setopt($handle, CURLOPT_MAXREDIRS, 0);
   \curl_setopt($handle, CURLOPT_CONNECTTIMEOUT, 5);
   \curl_setopt($handle, CURLOPT_TIMEOUT, 10);
-  \curl_setopt($handle, CURLOPT_RESOLVE, vec[$resolve_entry]);
+  if (!$is_ip_literal) {
+    \curl_setopt($handle, CURLOPT_RESOLVE, vec[$resolve_entry]);
+  }
   \curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, true);
   \curl_setopt($handle, CURLOPT_SSL_VERIFYHOST, 2);
   \curl_setopt($handle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
