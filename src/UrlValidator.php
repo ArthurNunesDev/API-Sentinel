@@ -6,6 +6,35 @@
  * This intentionally does not perform a network request. Network-level SSRF
  * protections must also validate resolved IP addresses and every redirect.
  */
+/**
+ * Validates every address returned by a DNS lookup before connecting.
+ *
+ * An empty result, malformed address, or any private/reserved address rejects
+ * the entire set. Callers must validate all A and AAAA answers and must not
+ * connect if DNS resolution changes between validation and connection.
+ */
+function api_sentinel_validate_resolved_ips(
+  vec<string> $addresses,
+): dict<string, mixed> {
+  if (\count($addresses) === 0) {
+    return dict['valid' => false, 'error' => 'DNS returned no addresses'];
+  }
+
+  $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
+  foreach ($addresses as $address) {
+    if (
+      \filter_var($address, FILTER_VALIDATE_IP, $flags) === false
+    ) {
+      return dict[
+        'valid' => false,
+        'error' => 'DNS resolved to a private, reserved, or invalid IP address',
+      ];
+    }
+  }
+
+  return dict['valid' => true, 'addresses' => $addresses];
+}
+
 function api_sentinel_validate_target_url(string $url): dict<string, mixed> {
   $parts = \parse_url($url);
 
