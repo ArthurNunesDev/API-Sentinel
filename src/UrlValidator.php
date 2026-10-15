@@ -3,15 +3,16 @@
 /**
  * Validates the basic shape of a URL before it can be monitored.
  *
- * This intentionally does not perform a network request. Network-level SSRF
- * protections must also validate resolved IP addresses and every redirect.
+ * This does not make a network request. Network-level SSRF protections must
+ * also validate DNS answers, pin the connection to a validated address, and
+ * validate every redirect.
  */
+
 /**
  * Validates every address returned by a DNS lookup before connecting.
  *
  * An empty result, malformed address, or any private/reserved address rejects
- * the entire set. Callers must validate all A and AAAA answers and must not
- * connect if DNS resolution changes between validation and connection.
+ * the entire set. Callers must validate all A and AAAA answers.
  */
 function api_sentinel_validate_resolved_ips(
   vec<string> $addresses,
@@ -22,9 +23,7 @@ function api_sentinel_validate_resolved_ips(
 
   $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
   foreach ($addresses as $address) {
-    if (
-      \filter_var($address, FILTER_VALIDATE_IP, $flags) === false
-    ) {
+    if (\filter_var($address, FILTER_VALIDATE_IP, $flags) === false) {
       return dict[
         'valid' => false,
         'error' => 'DNS resolved to a private, reserved, or invalid IP address',
@@ -33,6 +32,64 @@ function api_sentinel_validate_resolved_ips(
   }
 
   return dict['valid' => true, 'addresses' => $addresses];
+}
+
+/**
+ * Resolves a target hostname and validates all IPv4 and IPv6 answers.
+ *
+ * This is a validation stage only: callers must still connect to one of the
+ * returned validated addresses directly to avoid DNS rebinding, preserve the
+ * original hostname for HTTP Host/TLS SNI, and disable or revalidate redirects.
+ */
+function api_sentinel_resolve_and_validate_host(
+  string $host,
+): dict<string, mixed> {
+  $normalized_host = \strtolower(\rtrim($host, '.'));
+  if (
+    $normalized_host === '' ||
+    \filter_var($normalized_host, FILTER_VALIDATE_IP) !== false ||
+    $normalized_host === 'localhost' ||
+    $normalized_host === 'localhost.localdomain' ||
+    (\strlen($normalized_host) >= 10 &&
+      \substr($normalized_host, \strlen($normalized_host) - 10) === '.localhost')
+  ) {
+    return dict[
+      'valid' => false,
+      'error' => 'A public DNS hostname is required',
+    ];
+  }
+
+  if (!\function_exists('dns_get_record')) {
+    return dict[
+      'valid' => false,
+      'error' => 'DNS resolution is not available in this runtime',
+    ];
+  }
+
+  $records = \dns_get_record($normalized_host, DNS_A | DNS_AAAA);
+  if (!\is_array($records) || \count($records) === 0) {
+    return dict['valid' => false, 'error' => 'DNS lookup failed or returned no addresses'];
+  }
+
+  $addresses = vec[];
+  foreach ($records as $record) {
+    if (!\is_array($record)) {
+      return dict['valid' => false, 'error' => 'DNS returned an invalid record'];
+    }
+
+    $address = null;
+    if (isset($record['ip']) && \is_string($record['ip'])) {
+      $address = $record['ip'];
+    } else if (isset($record['ipv6']) && \is_string($record['ipv6'])) {
+      $address = $record['ipv6'];
+    }
+
+    if ($address !== null) {
+      $addresses[] = $address;
+    }
+  }
+
+  return api_sentinel_validate_resolved_ips($addresses);
 }
 
 function api_sentinel_validate_target_url(string $url): dict<string, mixed> {
