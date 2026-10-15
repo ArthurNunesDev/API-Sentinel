@@ -1,9 +1,9 @@
 <?hh // strict
 
-require_once __DIR__ . '/../src/Health.php';
-
 <<__EntryPoint>>
 function main(): void {
+  require_once __DIR__ . '/../src/Health.php';
+
   $payload = api_sentinel_health_payload();
 
   invariant($payload['status'] === 'ok', 'Health status should be ok');
