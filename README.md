@@ -33,7 +33,7 @@ O endpoint confirma apenas que a aplicação respondeu; não verifica banco de d
 - Métodos diferentes de `GET` retornam `405 Method Not Allowed`.
 - Rotas desconhecidas retornam `404 Not Found`.
 
-## Validação inicial de URLs
+## Validação de cadastro de endpoints\n\nA função `api_sentinel_validate_endpoint_payload()` em `src/Endpoint.php` valida os campos básicos de um endpoint: nome obrigatório de até 100 caracteres, URL HTTP/HTTPS aceita pela validação sintática existente e intervalo inteiro entre 60 e 86400 segundos (padrão de 300 segundos). Ela retorna um objeto de dados validado, mas **não grava dados, não cria uma rota HTTP e não inicia monitoramento**. A resolução DNS e as proteções de rede continuam sendo verificadas separadamente no momento da execução da verificação.\n\n## Validação inicial de URLs
 
 A função `api_sentinel_validate_target_url()` em `src/UrlValidator.php` verifica o formato da URL, aceita apenas HTTP/HTTPS, rejeita credenciais embutidas, localhost e endereços IP privados/reservados detectáveis diretamente. A função `api_sentinel_resolve_and_validate_host()` consulta registros DNS A e AAAA e valida todos os endereços encontrados. `api_sentinel_validate_resolved_ips()` rejeita a lista inteira se estiver vazia ou contiver algum endereço inválido, privado ou reservado.
 
@@ -73,7 +73,7 @@ docker run --rm -v "$PWD:/workspace" -w /workspace hhvm/hhvm:latest hhvm tests/U
 - [x] Adicionar verificação HTTP pontual com conexão fixada ao IP validado e redirecionamentos desativados (etapa isolada)
 - [x] Fazer o cliente HTTP falhar fechado quando opções críticas de segurança não puderem ser aplicadas
 - [ ] Testar e endurecer as proteções SSRF no runtime de produção (incluindo comportamento de rede e DNS rebinding)
-- [ ] Criar cadastro de endpoints monitorados
+- [x] Criar validação isolada dos dados de cadastro de endpoints\n- [ ] Criar API de cadastro com persistência e testes de autorização
 - [x] Implementar função isolada de verificação HTTP e medição de latência
 - [ ] Integrar verificações HTTP ao cadastro e agendamento de endpoints
 - [ ] Persistir endpoints e histórico no PostgreSQL
