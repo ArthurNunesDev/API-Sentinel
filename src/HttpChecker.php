@@ -1,13 +1,11 @@
 <?hh // strict
 
-
 /**
- * Performs one bounded HTTP check against a previously validated public IP.
+ * Performs one bounded HTTP check against a validated public destination.
  *
- * cURL's RESOLVE option pins the connection to the chosen IP while retaining
- * the URL hostname for the Host header and TLS certificate/SNI verification.
- * Redirects are intentionally not followed; each redirect target must be
- * validated independently before another request is made.
+ * DNS names are pinned to a validated IP while the original hostname is
+ * retained for HTTP Host and TLS certificate/SNI validation. Redirects and
+ * environment-configured proxies are disabled to prevent bypassing validation.
  */
 function api_sentinel_check_url(string $url): dict<string, mixed> {
   $url_validation = api_sentinel_validate_target_url($url);
@@ -60,19 +58,30 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
     }
   }
 
-  if (
-    !\function_exists('curl_init') ||
-    !\defined('CURLOPT_RESOLVE') ||
-    !\defined('CURLOPT_PROXY') ||
-    !\defined('CURLOPT_PROTOCOLS')
-  ) {
+  $required_options = vec[
+    'CURLOPT_RESOLVE',
+    'CURLOPT_PROXY',
+    'CURLOPT_PROTOCOLS',
+    'CURLOPT_FOLLOWLOCATION',
+    'CURLOPT_MAXREDIRS',
+    'CURLOPT_CONNECTTIMEOUT',
+    'CURLOPT_TIMEOUT',
+    'CURLOPT_SSL_VERIFYPEER',
+    'CURLOPT_SSL_VERIFYHOST',
+    'CURLOPT_RETURNTRANSFER',
+  ];
+  if (!\function_exists('curl_init')) {
     return dict['ok' => false, 'error' => 'Safe HTTP client is unavailable'];
+  }
+  foreach ($required_options as $option_name) {
+    if (!\defined($option_name)) {
+      return dict['ok' => false, 'error' => 'Required HTTP security option is unavailable'];
+    }
   }
 
   $scheme = $parts['scheme'] ?? 'https';
   $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
   $address = $addresses[0];
-  // DNS names are pinned with CURLOPT_RESOLVE; IP literals are already direct.
   $resolve_address = \strpos($address, ':') !== false
     ? '['.$address.']'
     : $address;
@@ -83,18 +92,27 @@ function api_sentinel_check_url(string $url): dict<string, mixed> {
     return dict['ok' => false, 'error' => 'Could not initialize HTTP client'];
   }
 
-  \curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
-  \curl_setopt($handle, CURLOPT_FOLLOWLOCATION, false);
-  \curl_setopt($handle, CURLOPT_MAXREDIRS, 0);
-  \curl_setopt($handle, CURLOPT_CONNECTTIMEOUT, 5);
-  \curl_setopt($handle, CURLOPT_TIMEOUT, 10);
-  if (!$is_ip_literal) {
-    \curl_setopt($handle, CURLOPT_RESOLVE, vec[$resolve_entry]);
+  // Fail closed: never execute the request if any security-critical option fails.
+  $options_ok =
+    \curl_setopt($handle, CURLOPT_RETURNTRANSFER, true) &&
+    \curl_setopt($handle, CURLOPT_FOLLOWLOCATION, false) &&
+    \curl_setopt($handle, CURLOPT_MAXREDIRS, 0) &&
+    \curl_setopt($handle, CURLOPT_CONNECTTIMEOUT, 5) &&
+    \curl_setopt($handle, CURLOPT_TIMEOUT, 10) &&
+    \curl_setopt($handle, CURLOPT_PROXY, '');
+  if ($options_ok && !$is_ip_literal) {
+    $options_ok = \curl_setopt($handle, CURLOPT_RESOLVE, vec[$resolve_entry]);
   }
-  \curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, true);
-  \curl_setopt($handle, CURLOPT_SSL_VERIFYHOST, 2);
-  \curl_setopt($handle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
-  \curl_setopt($handle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+  if ($options_ok) {
+    $options_ok =
+      \curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, true) &&
+      \curl_setopt($handle, CURLOPT_SSL_VERIFYHOST, 2) &&
+      \curl_setopt($handle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+  }
+  if (!$options_ok) {
+    \curl_close($handle);
+    return dict['ok' => false, 'error' => 'Could not enforce HTTP security options'];
+  }
 
   $started_at = \microtime(true);
   $body = \curl_exec($handle);
