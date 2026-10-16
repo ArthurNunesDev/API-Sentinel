@@ -89,5 +89,23 @@ function main(): void {
     'HTTP checker must reject localhost before network access',
   );
 
+  $checker_private_ip = api_sentinel_check_url('http://192.168.1.10');
+  invariant(
+    $checker_private_ip['ok'] === false,
+    'HTTP checker must reject private IPs before network access',
+  );
+
+  $checker_credentials = api_sentinel_check_url('https://user:pass@example.com');
+  invariant(
+    $checker_credentials['ok'] === false,
+    'HTTP checker must reject URLs with embedded credentials before network access',
+  );
+
+  $checker_localhost_dot = api_sentinel_check_url('http://localhost.:8080');
+  invariant(
+    $checker_localhost_dot['ok'] === false,
+    'HTTP checker must reject trailing-dot localhost before network access',
+  );
+
   echo "URL validation tests passed.\n";
 }
