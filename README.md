@@ -37,7 +37,7 @@ O endpoint confirma apenas que a aplicação respondeu; não verifica banco de d
 
 A função `api_sentinel_validate_target_url()` em `src/UrlValidator.php` verifica o formato da URL, aceita apenas HTTP/HTTPS, rejeita credenciais embutidas, localhost e endereços IP privados/reservados detectáveis diretamente. A função `api_sentinel_resolve_and_validate_host()` consulta registros DNS A e AAAA e valida todos os endereços encontrados. `api_sentinel_validate_resolved_ips()` rejeita a lista inteira se estiver vazia ou contiver algum endereço inválido, privado ou reservado.
 
-**Limitação importante:** `api_sentinel_check_url()` em `src/HttpChecker.php` faz uma verificação HTTP pontual, limita o tempo da conexão e da requisição, fixa hosts DNS ao IP validado com `CURLOPT_RESOLVE`, desativa proxies configurados no ambiente e não segue redirecionamentos. Redirecionamentos são reportados, não seguidos. Ainda é necessário validar o comportamento do cliente HTTP no runtime alvo e ampliar os testes de segurança antes de expor isso publicamente; a função não é chamada pela API pública, não há cadastro nem agendamento de monitoramento, histórico ou proteção SSRF completa garantida. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
+**Limitação importante:** `api_sentinel_check_url()` em `src/HttpChecker.php` faz uma verificação HTTP pontual, limita o tempo da conexão e da requisição, fixa hosts DNS ao IP validado com `CURLOPT_RESOLVE`, desativa proxies configurados no ambiente, exige que as opções críticas de segurança do cURL sejam aplicadas com sucesso e não segue redirecionamentos. Se não conseguir aplicar uma opção obrigatória, encerra a verificação antes de executar a requisição. Redirecionamentos são reportados, não seguidos. Ainda é necessário validar o comportamento do cliente HTTP no runtime alvo e ampliar os testes de segurança antes de expor isso publicamente; a função não é chamada pela API pública, não há cadastro nem agendamento de monitoramento, histórico ou proteção SSRF completa garantida. Não exponha um monitor de URLs na internet até implementar e testar essas proteções adicionais.
 
 ## Executar com Docker
 
@@ -71,7 +71,8 @@ docker run --rm -v "$PWD:/workspace" -w /workspace hhvm/hhvm:latest hhvm tests/U
 - [x] Criar validação sintática inicial de URLs e testes
 - [x] Resolver DNS A/AAAA e validar todos os IPs retornados (etapa isolada)
 - [x] Adicionar verificação HTTP pontual com conexão fixada ao IP validado e redirecionamentos desativados (etapa isolada)
-- [ ] Testar e endurecer as proteções SSRF no runtime de produção (incluindo opções do cliente HTTP e comportamento de rede)
+- [x] Fazer o cliente HTTP falhar fechado quando opções críticas de segurança não puderem ser aplicadas
+- [ ] Testar e endurecer as proteções SSRF no runtime de produção (incluindo comportamento de rede e DNS rebinding)
 - [ ] Criar cadastro de endpoints monitorados
 - [x] Implementar função isolada de verificação HTTP e medição de latência
 - [ ] Integrar verificações HTTP ao cadastro e agendamento de endpoints
